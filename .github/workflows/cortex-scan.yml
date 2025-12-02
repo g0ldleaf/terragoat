@@ -1,0 +1,78 @@
+name: Cortex CLI Code Scan
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+env:
+  # Use the Base URL format we verified: https://api-ms-cxsiamp...
+  CORTEX_API_URL: ${{ secrets.CORTEX_API_URL }} 
+  CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
+  CORTEX_API_KEY_ID: ${{ secrets.CORTEX_API_KEY_ID }}
+
+jobs:
+  cortex-code-scan:
+    name: Cortex Unified Scan (IaC + Secrets)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # Required for GitHub Security Tab reporting
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Note: 'setup-node' is likely removed unless your app specifically needs it. 
+      # The Unified CLI is a binary download and doesn't require Node to run.
+
+      - name: Download Cortex Unified CLI
+        run: |
+          echo "Fetching Cortex Unified CLI..."
+          
+          # Request the download link using the specific Code Security headers
+          crtx_resp=$(curl -s "${{ env.CORTEX_API_URL }}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+            -H "x-xdr-auth-id: ${{ env.CORTEX_API_KEY_ID }}" \
+            -H "Authorization: ${{ env.CORTEX_API_KEY }}")
+          
+          # Extract the signed URL from the JSON response
+          crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
+          
+          # Download and make executable
+          curl -s -o cortexcli $crtx_url
+          chmod +x cortexcli
+          
+          echo "CLI Installed. Version:"
+          ./cortexcli --version
+
+      - name: Run Cortex Code Scan
+        run: |
+          echo "Running Scan on ${{ github.repository }}..."
+          
+          # 'code scan' automatically checks for IaC and Secrets
+          # We add --soft-fail so the build passes even if Terragoat has issues
+          
+          ./cortexcli \
+            --api-base-url "${{ env.CORTEX_API_URL }}" \
+            --api-key "${{ env.CORTEX_API_KEY }}" \
+            --api-key-id "${{ env.CORTEX_API_KEY_ID }}" \
+            code scan \
+            --directory "${{ github.workspace }}" \
+            --repo-id "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --source "GITHUB_ACTIONS" \
+            --create-repo-if-missing \
+            --soft-fail \
+            --output cli,sarif \
+            --output-file-name results
+
+      - name: Upload SARIF to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          # Note: The unified CLI often names the file based on the input or default
+          # We look for the .sarif extension in the output directory
+          sarif_file: results.sarif
+          category: cortex-code-security
