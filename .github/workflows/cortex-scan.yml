@@ -25,12 +25,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Note: 'setup-node' is likely removed unless your app specifically needs it. 
-      # The Unified CLI is a binary download and doesn't require Node to run.
+      # The Unified CLI requires a Node runtime to execute the scan engine.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
       - name: Verify Node.js Version
         run: node -v
       - name: Download Cortex Unified CLI
@@ -71,7 +70,7 @@ jobs:
             --create-repo-if-missing \
             --soft-fail \
             --output cli,sarif \
-            --output-file-name results
+            --output-file-path results
 
       - name: Upload SARIF to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v3
