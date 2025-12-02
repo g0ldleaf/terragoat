@@ -69,8 +69,7 @@ jobs:
             --source "GITHUB_ACTIONS" \
             --create-repo-if-missing \
             --soft-fail \
-            --output cli,sarif \
-            --output-file-path results
+            --output sarif > results.sarif
 
       - name: Upload SARIF to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v3
