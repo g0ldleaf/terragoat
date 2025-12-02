@@ -27,7 +27,12 @@ jobs:
 
       # Note: 'setup-node' is likely removed unless your app specifically needs it. 
       # The Unified CLI is a binary download and doesn't require Node to run.
-
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify Node.js Version
+        run: node -v
       - name: Download Cortex Unified CLI
         run: |
           echo "Fetching Cortex Unified CLI..."
