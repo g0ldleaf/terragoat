@@ -68,7 +68,6 @@ jobs:
             --branch "${{ github.ref_name }}" \
             --source "GITHUB_ACTIONS" \
             --create-repo-if-missing \
-            --soft-fail \
 
       - name: Upload SARIF to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v3
